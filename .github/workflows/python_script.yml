@@ -15,13 +15,13 @@ jobs:
         id: check_artifact
         run: |
           artifact=$(gh run list -w "${{ github.workflow }}" -L 1 -R "${{ github.repository }}" --json number,artifacts | jq '.runs[0].artifacts[] | select(.name=="signal") | .id')
-          echo "::set-output name=artifact::$artifact"
+          echo "artifact=$artifact" >> $GITHUB_ENV
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete signal artifact if it exists
-        if: steps.check_artifact.outputs.artifact != null
-        run: gh artifact delete ${{ steps.check_artifact.outputs.artifact }} -R "${{ github.repository }}"
+        if: env.artifact != null
+        run: gh artifact delete ${{ env.artifact }} -R "${{ github.repository }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
