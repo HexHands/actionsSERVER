@@ -5,29 +5,12 @@ on:
     branches:
       - '**'
   schedule:
-    - cron: '* * * * *'
+    - cron: '*/5 * * * *'
 
 jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check for signal artifact
-        id: check_artifact
-        run: |
-          artifact=$(gh run list -w "${{ github.workflow }}" -L 1 -R "${{ github.repository }}" --json number,artifacts | jq '.runs[0].artifacts[] | select(.name=="signal") | .id')
-          echo "artifact=$artifact" >> $GITHUB_ENV
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Delete signal artifact if it exists
-        if: env.artifact != null
-        run: gh artifact delete ${{ env.artifact }} -R "${{ github.repository }}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   run-python-script:
-    needs: check
     runs-on: ubuntu-latest
+
     steps:
     - name: Check out repository
       uses: actions/checkout@v2
@@ -46,8 +29,3 @@ jobs:
       run: python main.py
       env:
         PASSWORD: ${{ secrets.PASSWORD }}
-
-    - name: Create signal artifact
-      run: echo "signal" > signal.txt && gh artifact upload signal signal.txt
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
