@@ -10,3 +10,4 @@ while True:
     break
 
 print("Script has ended!")
+print(time.time() - start_time)
