@@ -5,10 +5,10 @@ on:
     branches:
       - '**'
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '* * * * *'
 
 jobs:
-  check_for_running_jobs:
+  run-python-script:
     runs-on: ubuntu-latest
     steps:
     - name: Check for running jobs
@@ -24,14 +24,10 @@ jobs:
 
         # If there are other running jobs, exit successfully without running the python script
         if [[ $(echo "$runs" | wc -l) -gt 0 ]]; then
-          echo "There are other running jobs. Exiting..."
+          echo "There are other running jobs. Exiting gracefully..."
           exit 0
         fi
 
-  run-python-script:
-    needs: check_for_running_jobs
-    runs-on: ubuntu-latest
-    steps:
     - name: Check out repository
       uses: actions/checkout@v2
 
