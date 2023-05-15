@@ -1,0 +1,56 @@
+name: Run Python Script
+
+on:
+  push:
+    branches:
+      - '**'
+  schedule:
+    - cron: '* * * * *'
+
+jobs:
+  check_and_cancel:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Cancel Previous Runs
+      run: |
+        # Get the workflow id from the current run
+        workflow_id=$(jq --raw-output .workflow_id "$GITHUB_EVENT_PATH")
+
+        # Find any runs in progress from the same workflow
+        runs=$(gh api -X GET /repos/$GITHUB_REPOSITORY/actions/workflows/$workflow_id/runs --jq ".workflow_runs[] | select(.head_branch == \"${{ github.ref }}\") | select(.status == \"in_progress\" or .status == \"queued\" or .status == \"waiting\") | .id")
+
+        # Cancel any found runs
+        for run in $runs
+        do
+          echo "Cancelling run: $run"
+          gh api -X POST /repos/$GITHUB_REPOSITORY/actions/runs/$run/cancel
+        done
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  run-python-script:
+    needs: check_and_cancel
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Python script
+      run: python main.py
+      env:
+        PASSWORD: ${{ secrets.PASSWORD }}
