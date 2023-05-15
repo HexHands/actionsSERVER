@@ -8,26 +8,27 @@ on:
     - cron: '* * * * *'
 
 jobs:
-  run-python-script:
+  check:
     runs-on: ubuntu-latest
     steps:
-    - name: Check for running jobs
-      run: |
-        # Get the workflow ID
-        workflow_id=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows | jq '.workflows[] | select(.path == ".github/workflows/python_script.yml") | .id')
-        
-        # Get the raw API response
-        response=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/workflows/$workflow_id/runs)
-        
-        # Find any runs in progress from the same workflow, excluding the current run
-        runs=$(echo "$response" | jq --arg current_run "${{ github.run_id }}" '.workflow_runs[] | select(.head_branch == "${{ github.ref }}" and (.status == "in_progress" or .status == "queued") and .id != $current_run) | .id')
+      - name: Check for signal artifact
+        id: check_artifact
+        run: |
+          artifact=$(gh run list -w "${{ github.workflow }}" -L 1 -R "${{ github.repository }}" --json number,artifacts | jq '.runs[0].artifacts[] | select(.name=="signal") | .id')
+          echo "::set-output name=artifact::$artifact"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-        # If there are other running jobs, exit successfully without running the python script
-        if [[ $(echo "$runs" | wc -l) -gt 0 ]]; then
-          echo "There are other running jobs. Exiting gracefully..."
-          exit 0
-        fi
+      - name: Delete signal artifact if it exists
+        if: steps.check_artifact.outputs.artifact != null
+        run: gh artifact delete ${{ steps.check_artifact.outputs.artifact }} -R "${{ github.repository }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  run-python-script:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
     - name: Check out repository
       uses: actions/checkout@v2
 
@@ -45,3 +46,8 @@ jobs:
       run: python main.py
       env:
         PASSWORD: ${{ secrets.PASSWORD }}
+
+    - name: Create signal artifact
+      run: echo "signal" > signal.txt && gh artifact upload signal signal.txt
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
