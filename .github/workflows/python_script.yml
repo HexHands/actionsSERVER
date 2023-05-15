@@ -7,22 +7,13 @@ on:
   schedule:
     - cron: '*/5 * * * *'
 
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    outputs:
-      run: ${{ steps.check.outputs.run }}
-    steps:
-      - name: Check if another run is in progress
-        id: check
-        run: |
-          run=$(gh api repos/${{ github.repository }}/actions/runs --paginate | jq -r '.workflow_runs[] | select(.head_branch == "${{ github.ref }}" and .status == "in_progress" and .name == "${{ github.workflow }}") | .id')
-          echo "::set-output name=run::$run"
+concurrency: 
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
 
+jobs:
   run-python-script:
-    needs: check
     runs-on: ubuntu-latest
-    if: needs.check.outputs.run == ''
     steps:
     - name: Check out repository
       uses: actions/checkout@v2
