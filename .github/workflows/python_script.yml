@@ -12,25 +12,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
     - name: Cancel Previous Runs
       run: |
-        # Get the workflow id from the current run
-        workflow_id=$(jq --raw-output .workflow_id "$GITHUB_EVENT_PATH")
-
         # Find any runs in progress from the same workflow
-        runs=$(gh api -X GET /repos/$GITHUB_REPOSITORY/actions/workflows/$workflow_id/runs --jq ".workflow_runs[] | select(.head_branch == \"${{ github.ref }}\") | select(.status == \"in_progress\" or .status == \"queued\" or .status == \"waiting\") | .id")
+        runs=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/runs | jq -r '.workflow_runs[] | select(.head_branch == "${{ github.ref }}" and (.status == "in_progress" or .status == "queued" or .status == "waiting")) | .id')
 
         # Cancel any found runs
         for run in $runs
         do
           echo "Cancelling run: $run"
-          gh api -X POST /repos/$GITHUB_REPOSITORY/actions/runs/$run/cancel
+          curl -s -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/runs/$run/cancel
         done
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
   run-python-script:
     needs: check_and_cancel
