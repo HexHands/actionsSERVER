@@ -5,7 +5,7 @@ on:
     branches:
       - '**'
   schedule:
-    - cron: '* * * * *'
+    - cron: '*/5 * * * *'
 
 jobs:
   check_for_running_jobs:
@@ -22,10 +22,10 @@ jobs:
         # Find any runs in progress from the same workflow, excluding the current run
         runs=$(echo "$response" | jq --arg current_run "${{ github.run_id }}" '.workflow_runs[] | select(.head_branch == "${{ github.ref }}" and (.status == "in_progress" or .status == "queued") and .id != $current_run) | .id')
 
-        # If there are other running jobs, fail this job
+        # If there are other running jobs, exit successfully without running the python script
         if [[ $(echo "$runs" | wc -l) -gt 0 ]]; then
           echo "There are other running jobs. Exiting..."
-          exit 1
+          exit 0
         fi
 
   run-python-script:
